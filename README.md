@@ -24,7 +24,11 @@ I build interactive web experiences, polished interfaces, and projects that blen
 
 <!-- Animated Pac-Man contribution-style graphic hosted by the pacman action.
      If the graphic does not appear immediately, the workflow needs to generate it first. -->
-<img src="https://raw.githubusercontent.com/manthansharma17/overview/output/pacman-contribution-graph.svg" alt="Pac-Man moving across a contribution-style grid" width="100%" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/manthansharma17/manthansharma17/output/pacman-contribution-graph-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/manthansharma17/manthansharma17/output/pacman-contribution-graph.svg">
+  <img src="https://raw.githubusercontent.com/manthansharma17/manthansharma17/output/pacman-contribution-graph.svg" alt="Pac-Man moving across your GitHub contribution calendar" width="100%" />
+</picture>
 
 <sub>Nom nom nom… collecting pixels, commits, and ideas. 👾</sub>
 

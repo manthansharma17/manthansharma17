@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#05010f"/>
+      <stop offset="0.55" stop-color="#120632"/>
+      <stop offset="1" stop-color="#021a26"/>
+    </linearGradient>
+    <linearGradient id="neon" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#00e5ff"/>
+      <stop offset="0.5" stop-color="#8b5cf6"/>
+      <stop offset="1" stop-color="#ff2bd6"/>
+      <animateTransform attributeName="gradientTransform" type="translate" values="-1 0;1 0;-1 0" dur="8s" repeatCount="indefinite"/>
+    </linearGradient>
+    <linearGradient id="wave" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#00e5ff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#6a00f4" stop-opacity="0.55"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-50%" width="140%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#8b5cf6" stroke-opacity="0.12"/>
+    </pattern>
+    <clipPath id="card"><rect width="1200" height="300" rx="18"/></clipPath>
+  </defs>
+
+  <style>
+    .twinkle { animation: tw 3s ease-in-out infinite; }
+    .twinkle:nth-child(2n) { animation-delay: 1s; }
+    .twinkle:nth-child(3n) { animation-delay: 2s; }
+    @keyframes tw { 0%,100% { opacity: .2 } 50% { opacity: 1 } }
+    .title { font: 800 72px 'Segoe UI', Verdana, sans-serif; letter-spacing: 2px; }
+    .sub { font: 600 22px 'Segoe UI', Verdana, sans-serif; letter-spacing: 4px; fill: #c9d1ff; }
+    .tag { font: 600 15px 'Consolas', 'Courier New', monospace; fill: #00e5ff; letter-spacing: 2px; }
+  </style>
+
+  <g clip-path="url(#card)">
+    <rect width="1200" height="300" fill="url(#bg)"/>
+    <rect width="1200" height="300" fill="url(#grid)"/>
+
+    <g fill="#fff">
+      <circle class="twinkle" cx="80" cy="50" r="1.6"/>
+      <circle class="twinkle" cx="210" cy="230" r="1.2"/>
+      <circle class="twinkle" cx="330" cy="70" r="1.8"/>
+      <circle class="twinkle" cx="470" cy="35" r="1.2"/>
+      <circle class="twinkle" cx="760" cy="45" r="1.5"/>
+      <circle class="twinkle" cx="900" cy="250" r="1.3"/>
+      <circle class="twinkle" cx="1030" cy="60" r="1.8"/>
+      <circle class="twinkle" cx="1140" cy="200" r="1.2"/>
+      <circle class="twinkle" cx="640" cy="265" r="1.4"/>
+      <circle class="twinkle" cx="140" cy="140" r="1.1"/>
+    </g>
+
+    <path d="M0 250 C200 210 400 290 600 250 C800 210 1000 290 1200 250 V300 H0Z" fill="url(#wave)" opacity="0.5">
+      <animate attributeName="d" dur="10s" repeatCount="indefinite"
+        values="M0 250 C200 210 400 290 600 250 C800 210 1000 290 1200 250 V300 H0Z;
+                M0 250 C200 290 400 210 600 250 C800 290 1000 210 1200 250 V300 H0Z;
+                M0 250 C200 210 400 290 600 250 C800 210 1000 290 1200 250 V300 H0Z"/>
+    </path>
+    <path d="M0 270 C250 300 450 240 700 270 C900 295 1050 250 1200 270 V300 H0Z" fill="#6a00f4" opacity="0.35">
+      <animate attributeName="d" dur="7s" repeatCount="indefinite"
+        values="M0 270 C250 300 450 240 700 270 C900 295 1050 250 1200 270 V300 H0Z;
+                M0 270 C250 240 450 300 700 270 C900 245 1050 295 1200 270 V300 H0Z;
+                M0 270 C250 300 450 240 700 270 C900 295 1050 250 1200 270 V300 H0Z"/>
+    </path>
+
+    <text x="600" y="62" text-anchor="middle" class="tag">&lt; hello world /&gt;</text>
+    <text x="600" y="150" text-anchor="middle" class="title" fill="url(#neon)" filter="url(#glow)">MANTHAN SHARMA</text>
+    <text x="600" y="198" text-anchor="middle" class="sub">FULL-STACK · 3D &amp; GAME DEV · AI/ML · AUTOMATION</text>
+
+    <rect x="1" y="1" width="1198" height="298" rx="18" fill="none" stroke="url(#neon)" stroke-width="2" opacity="0.8"/>
+  </g>
+</svg>

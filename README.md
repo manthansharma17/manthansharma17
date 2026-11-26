@@ -79,9 +79,11 @@ const nightShift = {
 
 <div align="center">
 
-<img src="./assets/space-shooter.gif" alt="Spaceship shooting down my GitHub contribution graph" width="100%" />
+<a href="https://manthansharma17.github.io/manthansharma17/game/"><img src="./assets/space-shooter.gif" alt="Spaceship shooting down my GitHub contribution graph — click to play" width="100%" /></a>
 
-<sub>Every green square is a target. The harder I work, the harder they hit back.</sub>
+<a href="https://manthansharma17.github.io/manthansharma17/game/"><img src="https://img.shields.io/badge/%E2%96%B6%20PLAY%20IT%20YOURSELF-E3162B?style=for-the-badge&labelColor=0A0A0A" alt="Play the game" /></a>
+
+<sub>Every square is a day of my year. Busier days hit harder. Think you can clear it?</sub>
 
 </div>
 

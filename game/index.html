@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Night Shift — Contribution Shooter</title>
+<style>
+  :root { --red: #e3162b; --deep: #6b0000; --ink: #0a0000; --bone: #f2e6e6; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #050000; color: var(--bone); font-family: Impact, 'Arial Narrow Bold', 'Arial Black', sans-serif; overflow: hidden; touch-action: none; user-select: none; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  #wrap { position: relative; width: min(100vw, 1100px); aspect-ratio: 16 / 10; max-height: 100vh; }
+  canvas { width: 100%; height: 100%; display: block; border: 3px solid var(--red); border-radius: 10px; background: #0a0000; }
+  .overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 24px;
+    background: radial-gradient(ellipse at center, rgba(227,22,43,.92), rgba(107,0,0,.96)); border-radius: 10px; color: var(--ink); }
+  .overlay.hidden { display: none; }
+  .overlay h1 { font-size: clamp(42px, 9vw, 110px); line-height: .9; letter-spacing: -1px; }
+  .overlay h2 { font-size: clamp(18px, 3vw, 30px); }
+  .overlay p { font: 600 clamp(12px, 1.6vw, 16px) 'Segoe UI', Verdana, sans-serif; max-width: 560px; }
+  .mono { font: 700 12px Consolas, 'Courier New', monospace; letter-spacing: 3px; }
+  button { font: inherit; font-size: clamp(18px, 2.6vw, 26px); padding: 10px 34px; background: var(--ink); color: var(--red); border: 3px solid var(--ink); border-radius: 6px; cursor: pointer; letter-spacing: 2px; }
+  button:hover { background: #1a0000; }
+  a { color: var(--ink); }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c" width="1100" height="688"></canvas>
+
+  <div class="overlay" id="start">
+    <span class="mono">MANTHANSHARMA17 // CONTRIBUTION DEFENSE</span>
+    <h1>NIGHT SHIFT</h1>
+    <h2 id="tally">LOADING THE YEAR…</h2>
+    <p>Every square is a day of my GitHub year. Busier days hit harder and take more shots. Clear the grid before it reaches you.</p>
+    <button id="play">PLAY</button>
+    <span class="mono">← → / A D MOVE · SPACE FIRE · P PAUSE · TOUCH: DRAG TO MOVE</span>
+  </div>
+
+  <div class="overlay hidden" id="end">
+    <span class="mono" id="endTag">TRANSMISSION ENDED</span>
+    <h1 id="endTitle">GAME OVER</h1>
+    <h2 id="endScore"></h2>
+    <p id="endMsg"></p>
+    <button id="again">PLAY AGAIN</button>
+    <span class="mono"><a href="https://github.com/manthansharma17">BACK TO PROFILE</a></span>
+  </div>
+</div>
+
+<script>
+const USER = 'manthansharma17';
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height;
+const $ = id => document.getElementById(id);
+
+const LEVEL = { NONE: 0, FIRST_QUARTILE: 1, SECOND_QUARTILE: 2, THIRD_QUARTILE: 3, FOURTH_QUARTILE: 4 };
+const SHADES = ['', '#5c0a12', '#9b0e1d', '#d1142a', '#ff3b4e'];
+
+let calendar = null;
+let state, keys = {}, pointerX = null, lastT = 0, best = 0;
+try { best = +localStorage.getItem('ns-best') || 0; } catch {}
+
+async function loadCalendar() {
+  try {
+    const res = await fetch('./contributions.json', { cache: 'no-store' });
+    if (!res.ok) throw 0;
+    const raw = await res.json();
+    const cal = raw.data.user.contributionsCollection.contributionCalendar;
+    return { total: cal.totalContributions, weeks: cal.weeks.map(w => w.contributionDays.map(d => ({ date: d.date, count: d.contributionCount, level: LEVEL[d.contributionLevel] ?? 0 }))) };
+  } catch {
+    const weeks = Array.from({ length: 53 }, () => Array.from({ length: 7 }, () => {
+      const r = Math.random(); const level = r < .45 ? 0 : r < .7 ? 1 : r < .85 ? 2 : r < .95 ? 3 : 4;
+      return { date: '', count: level * 3, level };
+    }));
+    return { total: weeks.flat().reduce((s, d) => s + d.count, 0), weeks, demo: true };
+  }
+}
+
+function newGame(idle = false) {
+  const cols = calendar.weeks.length, cell = Math.min(17, (W - 60) / cols), gap = 3;
+  const gridW = cols * (cell + gap) - gap;
+  const enemies = [];
+  calendar.weeks.forEach((week, x) => week.forEach((d, y) => {
+    if (d.level > 0) enemies.push({ x: (W - gridW) / 2 + x * (cell + gap), y: 70 + y * (cell + gap), s: cell, hp: d.level, max: d.level, d, flash: 0 });
+  }));
+  state = {
+    enemies, total: enemies.length, bullets: [], shots: [], sparks: [], stars: Array.from({ length: 90 }, () => ({ x: Math.random() * W, y: Math.random() * H, v: 20 + Math.random() * 60 })),
+    ship: { x: W / 2, y: H - 60, w: 34, h: 30, cool: 0, inv: 0 },
+    lives: 3, score: 0, drift: 1, dir: 1, offX: 0, offY: 0, speed: 18, paused: false, over: false, idle, shake: 0, cleared: 0,
+  };
+}
+
+function fire() {
+  const s = state.ship;
+  if (s.cool > 0) return;
+  s.cool = .16;
+  state.bullets.push({ x: s.x - 9, y: s.y - 14, vy: -620 }, { x: s.x + 9, y: s.y - 14, vy: -620 });
+}
+
+function burst(x, y, color, n = 12) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, v = 60 + Math.random() * 220;
+    state.sparks.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: .5 + Math.random() * .4, color });
+  }
+}
+
+function hitShip() {
+  const s = state.ship;
+  if (s.inv > 0) return;
+  state.lives--; s.inv = 1.8; state.shake = .4;
+  burst(s.x, s.y, '#ffffff', 26);
+  if (state.lives <= 0) finish(false);
+}
+
+function finish(won) {
+  state.over = true;
+  best = Math.max(best, state.score);
+  try { localStorage.setItem('ns-best', best); } catch {}
+  $('endTag').textContent = won ? 'GRID NEUTRALIZED' : 'TRANSMISSION ENDED';
+  $('endTitle').textContent = won ? 'YEAR CLEARED' : 'GAME OVER';
+  $('endScore').textContent = `SCORE ${state.score.toLocaleString()} · BEST ${best.toLocaleString()}`;
+  $('endMsg').textContent = won
+    ? `You took down all ${state.total} active days — ${calendar.total.toLocaleString()} contributions. Respect.`
+    : `You cleared ${state.cleared} of ${state.total} days before the night won.`;
+  $('end').classList.remove('hidden');
+}
+
+function update(dt) {
+  const st = state, s = st.ship;
+  st.stars.forEach(p => { p.y += p.v * dt; if (p.y > H) { p.y = 0; p.x = Math.random() * W; } });
+  if (st.paused || st.over || st.idle) return;
+
+  const move = 460 * dt;
+  if (keys.ArrowLeft || keys.a) s.x -= move;
+  if (keys.ArrowRight || keys.d) s.x += move;
+  if (pointerX !== null) s.x += Math.max(-move * 1.6, Math.min(move * 1.6, pointerX - s.x));
+  s.x = Math.max(24, Math.min(W - 24, s.x));
+  s.cool -= dt; s.inv -= dt; st.shake = Math.max(0, st.shake - dt);
+  if (keys[' '] || pointerX !== null) fire();
+
+  const left = Math.min(...st.enemies.map(e => e.x)), right = Math.max(...st.enemies.map(e => e.x + e.s));
+  const progress = 1 - st.enemies.length / st.total;
+  const vx = (30 + progress * 90) * st.dir * dt;
+  if (left + st.offX + vx < 10 || right + st.offX + vx > W - 10) { st.dir *= -1; st.offY += 14; }
+  else st.offX += vx;
+  st.offY += (3 + progress * 6) * dt;
+
+  st.bullets.forEach(b => b.y += b.vy * dt);
+  st.bullets = st.bullets.filter(b => b.y > -10 && !b.dead);
+
+  for (const b of st.bullets) for (const e of st.enemies) {
+    const ex = e.x + st.offX, ey = e.y + st.offY;
+    if (!e.dead && b.x > ex - 2 && b.x < ex + e.s + 2 && b.y > ey && b.y < ey + e.s) {
+      b.dead = true; e.hp--; e.flash = .08;
+      if (e.hp <= 0) { e.dead = true; st.cleared++; st.score += e.max * 100 + Math.round(progress * 50); burst(ex + e.s / 2, ey + e.s / 2, SHADES[e.max], 8 + e.max * 3); }
+      break;
+    }
+  }
+  st.enemies = st.enemies.filter(e => !e.dead);
+  st.enemies.forEach(e => e.flash -= dt);
+  if (!st.enemies.length) return finish(true);
+
+  const rate = (0.6 + progress * 2.2) * dt;
+  if (Math.random() < rate) {
+    const pool = st.enemies.filter(e => e.max >= 2);
+    const e = (pool.length ? pool : st.enemies)[Math.floor(Math.random() * (pool.length || st.enemies.length))];
+    const ex = e.x + st.offX + e.s / 2, ey = e.y + st.offY + e.s;
+    const a = Math.atan2(s.y - ey, s.x - ex), v = 180 + e.max * 40;
+    st.shots.push({ x: ex, y: ey, vx: Math.cos(a) * v * .35, vy: Math.max(140, Math.sin(a) * v) });
+  }
+  st.shots.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; });
+  st.shots = st.shots.filter(p => {
+    if (Math.abs(p.x - s.x) < 15 && Math.abs(p.y - s.y) < 14) { hitShip(); return false; }
+    return p.y < H + 10;
+  });
+
+  for (const e of st.enemies) {
+    const ey = e.y + st.offY + e.s;
+    if (ey > s.y - 18) { st.lives = 1; s.inv = 0; hitShip(); break; }
+  }
+
+  st.sparks.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= .96; p.vy *= .96; p.life -= dt; });
+  st.sparks = st.sparks.filter(p => p.life > 0);
+}
+
+function drawShip(s) {
+  if (s.inv > 0 && Math.floor(s.inv * 12) % 2) return;
+  ctx.save(); ctx.translate(s.x, s.y);
+  ctx.fillStyle = '#e3162b';
+  ctx.beginPath(); ctx.moveTo(0, -18); ctx.lineTo(16, 12); ctx.lineTo(6, 8); ctx.lineTo(0, 14); ctx.lineTo(-6, 8); ctx.lineTo(-16, 12); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#0a0000'; ctx.fillRect(-3, -6, 6, 8);
+  ctx.fillStyle = `rgba(255,${120 + Math.random() * 80 | 0},60,.9)`;
+  ctx.beginPath(); ctx.moveTo(-5, 14); ctx.lineTo(0, 22 + Math.random() * 8); ctx.lineTo(5, 14); ctx.fill();
+  ctx.restore();
+}
+
+function draw() {
+  const st = state;
+  ctx.save();
+  if (st.shake > 0) ctx.translate((Math.random() - .5) * 12 * st.shake, (Math.random() - .5) * 12 * st.shake);
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#120000'); g.addColorStop(1, '#050000');
+  ctx.fillStyle = g; ctx.fillRect(-20, -20, W + 40, H + 40);
+  ctx.fillStyle = 'rgba(255,255,255,.35)'; st.stars.forEach(p => ctx.fillRect(p.x, p.y, 1.5, 1.5));
+
+  st.enemies.forEach(e => {
+    const x = e.x + st.offX, y = e.y + st.offY;
+    ctx.fillStyle = e.flash > 0 ? '#ffffff' : SHADES[e.hp];
+    ctx.fillRect(x, y, e.s, e.s);
+    if (e.max >= 3) { ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.strokeRect(x + .5, y + .5, e.s - 1, e.s - 1); }
+  });
+
+  ctx.fillStyle = '#ffd1d6'; st.bullets.forEach(b => ctx.fillRect(b.x - 1.5, b.y - 8, 3, 12));
+  ctx.fillStyle = '#ff3b4e'; st.shots.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, 7); ctx.fill(); });
+  st.sparks.forEach(p => { ctx.globalAlpha = Math.max(0, p.life * 1.6); ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, 3, 3); });
+  ctx.globalAlpha = 1;
+  drawShip(st.ship);
+  ctx.restore();
+
+  ctx.fillStyle = '#e3162b'; ctx.fillRect(0, 0, W, 40);
+  ctx.fillStyle = '#0a0000'; ctx.font = '24px Impact, Arial Black, sans-serif'; ctx.textBaseline = 'middle';
+  ctx.fillText(`SCORE ${st.score.toLocaleString()}`, 18, 21);
+  ctx.textAlign = 'center'; ctx.fillText(`${st.cleared} / ${st.total} DAYS CLEARED`, W / 2, 21);
+  ctx.textAlign = 'right'; ctx.fillText('♦'.repeat(Math.max(0, st.lives)) + `  BEST ${best.toLocaleString()}`, W - 18, 21);
+  ctx.textAlign = 'left';
+  if (calendar.demo) { ctx.font = '12px Consolas, monospace'; ctx.fillStyle = '#e3162b'; ctx.fillText('DEMO GRID — LIVE DATA LOADS AFTER THE DAILY UPDATE', 18, H - 14); }
+  if (st.paused) { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, 0, W, H); ctx.fillStyle = '#e3162b'; ctx.font = '72px Impact, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('PAUSED', W / 2, H / 2); ctx.textAlign = 'left'; }
+}
+
+function loop(t) {
+  const dt = Math.min(.033, (t - lastT) / 1000 || 0); lastT = t;
+  update(dt); draw();
+  requestAnimationFrame(loop);
+}
+
+function start() {
+  newGame();
+  $('start').classList.add('hidden'); $('end').classList.add('hidden');
+}
+
+addEventListener('keydown', e => {
+  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  keys[k] = true;
+  if ([' ', 'ArrowLeft', 'ArrowRight'].includes(e.key)) e.preventDefault();
+  if (k === 'p' && state && !state.over && !state.idle) state.paused = !state.paused;
+  if (e.key === 'Enter' && (state?.over || !$('start').classList.contains('hidden'))) start();
+});
+addEventListener('keyup', e => { keys[e.key.length === 1 ? e.key.toLowerCase() : e.key] = false; });
+
+const toCanvasX = e => { const r = cv.getBoundingClientRect(); return (e.clientX - r.left) * (W / r.width); };
+cv.addEventListener('pointerdown', e => { pointerX = toCanvasX(e); cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', e => { if (pointerX !== null) pointerX = toCanvasX(e); });
+['pointerup', 'pointercancel'].forEach(n => cv.addEventListener(n, () => pointerX = null));
+
+$('play').onclick = start;
+$('again').onclick = start;
+
+(async () => {
+  calendar = await loadCalendar();
+  $('tally').textContent = calendar.demo ? 'DEMO GRID READY' : `${calendar.total.toLocaleString()} CONTRIBUTIONS THIS YEAR`;
+  newGame(true);
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
